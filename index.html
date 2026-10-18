@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VTuberdex — le Pokédex des VTubers français</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --nuit:#15133a; --ecran:#211e55; --ligne:#3a3680; --texte:#eceaff; --doux:#a5a2d4;
+  --rose:#ff5c93; --cyan:#52e5f2;
+  --titre:'Unbounded','Trebuchet MS',sans-serif; --corps:'Figtree','Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nuit);color:var(--texte);font:400 1rem/1.55 var(--corps)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+[hidden]{display:none!important}
+
+header{display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;align-items:center;justify-content:space-between;
+  padding:1.25rem clamp(1rem,4vw,2.5rem);border-bottom:1px solid var(--ligne)}
+h1{font:700 1.5rem var(--titre);margin:0;letter-spacing:-.02em}
+h1 small{display:block;font:400 .875rem var(--corps);letter-spacing:0;color:var(--doux);margin-top:.2rem}
+.compte{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;font-size:.9rem;color:var(--doux)}
+
+.btn{background:var(--rose);color:#1d0a14;border:0;border-radius:.5rem;padding:.55rem 1rem;font-weight:600}
+.btn.sec{background:transparent;color:var(--texte);border:1px solid var(--ligne)}
+.btn.danger{color:var(--rose);border-color:var(--rose)}
+
+main{display:grid;grid-template-columns:minmax(280px,380px) 1fr;min-height:calc(100vh - 6rem)}
+aside{border-right:1px solid var(--ligne);padding:1rem 0 2rem}
+#recherche{display:block;width:calc(100% - 2rem);margin:0 1rem 1rem;padding:.6rem .8rem;
+  background:var(--ecran);border:1px solid var(--ligne);border-radius:.5rem}
+#compteur{margin:0 1rem .75rem;font-size:.85rem;color:var(--doux)}
+#liste{list-style:none;margin:0;padding:0}
+#liste button{display:grid;grid-template-columns:3.4rem 1fr;gap:0 .5rem;width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--ligne);padding:.7rem 1rem}
+#liste button:hover{background:var(--ecran)}
+#liste button.actif{background:var(--ecran);box-shadow:inset 3px 0 0 var(--rose)}
+.no{grid-row:span 2;align-self:center;font:500 .8rem var(--titre);color:var(--cyan)}
+.nom{font-weight:600}
+.tp{font-size:.85rem;color:var(--doux)}
+.vide{padding:1rem;color:var(--doux)}
+em{font-style:normal;font-size:.75rem;color:var(--rose);border:1px solid var(--rose);border-radius:99px;padding:0 .5rem;margin-left:.4rem}
+
+#fiche{padding:2rem clamp(1rem,4vw,3rem) 3rem;max-width:52rem}
+.grand-no{margin:0;font:700 clamp(3.5rem,11vw,7rem)/1 var(--titre);color:var(--ligne)}
+h2{font:700 clamp(1.6rem,4vw,2.4rem) var(--titre);letter-spacing:-.02em;margin:.2rem 0 1rem}
+.types,.liens{list-style:none;padding:0;margin:0 0 1.25rem;display:flex;flex-wrap:wrap;gap:.5rem}
+.types li{border:1px solid var(--cyan);color:var(--cyan);border-radius:99px;padding:.1rem .8rem;font-size:.9rem}
+.liens a{color:var(--texte);text-decoration:underline;text-decoration-color:var(--rose);text-underline-offset:.25em;margin-right:1rem}
+.desc{max-width:62ch;white-space:pre-line}
+.retour{display:none;margin-bottom:1.25rem}
+
+form label{display:block;margin:0 0 1rem;font-weight:600}
+form input:not([type=checkbox]),form textarea{display:block;width:100%;margin-top:.3rem;padding:.6rem .8rem;
+  background:var(--ecran);border:1px solid var(--ligne);border-radius:.5rem;font-weight:400}
+form label.check{display:flex;gap:.6rem;font-weight:400;align-items:flex-start}
+.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.25rem}
+#msg{min-height:1.5rem;color:var(--cyan)}
+
+@media (max-width:800px){
+  main{grid-template-columns:1fr}
+  aside{border-right:0}
+  #fiche{display:none}
+  .retour{display:inline-block}
+  body.vue-fiche aside{display:none}
+  body.vue-fiche #fiche{display:block}
+}
+@media (prefers-reduced-motion:no-preference){
+  #liste button{transition:background .15s}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>VTuberdex<small>Le Pokédex des VTubers français</small></h1>
+  <div class="compte">
+    <span id="info-compte"></span>
+    <button class="btn" id="btn-connexion">Se connecter avec Discord</button>
+    <button class="btn sec" id="btn-ma-fiche" hidden>Ma fiche</button>
+    <button class="btn sec" id="btn-deco" hidden>Se déconnecter</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <input id="recherche" type="search" placeholder="Chercher un nom ou un type" aria-label="Chercher un VTuber">
+    <p id="compteur"></p>
+    <ul id="liste"><li class="vide">Chargement…</li></ul>
+  </aside>
+  <section id="fiche" aria-live="polite"></section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ===== À REMPLIR : tes deux infos Supabase (Project Settings > API) ===== */
+const SUPABASE_URL = 'https://supabase.com/dashboard/project/tugywoyqfrldjlnkhqby/settings/api-keys';
+const SUPABASE_KEY = 'sb_publishable_1F69B3lCmoWgnIZzAfYKXg_NRqw_Dp_';
+/* Attention : uniquement la clé "anon" / "publishable". Jamais la clé "service_role" / "secret". */
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'pkce' } });
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : null;
+const num = n => String(n).padStart(3, '0');
+const discordId = u => u && (u.user_metadata.provider_id || u.user_metadata.sub);
+const COLONNES = 'numero,pseudo,slug,description,types,twitch,youtube,twitter,consentement';
+
+let vtubers = [], user = null, moi = null, courant = '';
+
+/* ---------- Chargement des données ---------- */
+async function charger() {
+  const { data, error } = await db.from('vtubers').select(COLONNES).order('numero');
+  if (error) {
+    console.error(error);
+    $('liste').innerHTML = '<li class="vide">Impossible de charger la liste. Vérifie l’URL et la clé Supabase en haut du script.</li>';
+    return;
+  }
+  vtubers = data;
+  moi = null;
+  if (user) {
+    const r = await db.from('vtubers').select('*').eq('discord_id', discordId(user)).maybeSingle();
+    moi = r.data || null;
+  }
+  const n = vtubers.filter(v => v.consentement).length;
+  $('compteur').textContent = n + (n > 1 ? ' VTubers référencés' : ' VTuber référencé');
+  majCompte();
+  if ($('form')) afficherListe(); else ouvrirDepuisHash();
+}
+
+function majCompte() {
+  $('btn-connexion').hidden = !!user;
+  $('btn-deco').hidden = !user;
+  $('btn-ma-fiche').hidden = !moi;
+  $('info-compte').textContent = user
+    ? (moi ? 'Connecté : ' + moi.pseudo : 'Aucune fiche n’est rattachée à ce compte Discord.')
+    : '';
+}
+
+/* ---------- Liste ---------- */
+function afficherListe() {
+  const q = $('recherche').value.trim().toLowerCase();
+  const items = vtubers.filter(v => !q || v.pseudo.toLowerCase().includes(q) ||
+    (v.types || []).some(t => t.toLowerCase().includes(q)));
+  $('liste').innerHTML = items.length ? items.map(v =>
+    `<li><button data-slug="${esc(v.slug)}" class="${v.slug === courant ? 'actif' : ''}">
+      <span class="no">${num(v.numero)}</span>
+      <span class="nom">${esc(v.pseudo)}${v.consentement ? '' : '<em>brouillon</em>'}</span>
+      <span class="tp">${esc((v.types || []).join(', '))}</span>
+    </button></li>`).join('') : '<li class="vide">Aucun résultat.</li>';
+}
+
+/* ---------- Fiche ---------- */
+function ouvrirDepuisHash() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  afficherFiche(h.includes('=') ? '' : h);
+}
+
+function afficherFiche(slug) {
+  courant = slug;
+  const v = vtubers.find(x => x.slug === slug);
+  if (!v) {
+    document.body.classList.remove('vue-fiche');
+    $('fiche').innerHTML = `<p class="grand-no">N° ???</p>
+      <h2>Choisis une entrée</h2>
+      <p class="desc">Chaque fiche du VTuberdex est créée avec l’accord de la personne, qui peut la modifier ou la supprimer à tout moment.</p>`;
+    afficherListe();
+    return;
+  }
+  const liens = [['Twitch', v.twitch], ['YouTube', v.youtube], ['X / Twitter', v.twitter]]
+    .filter(([, u]) => safeUrl(u))
+    .map(([nom, u]) => `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener noreferrer">${nom}</a>`).join('');
+  const modifiable = moi && moi.slug === v.slug;
+  $('fiche').innerHTML = `
+    <button class="btn sec retour" id="btn-retour">← Retour à la liste</button>
+    <p class="grand-no">N° ${num(v.numero)}</p>
+    <h2>${esc(v.pseudo)}${v.consentement ? '' : '<em>brouillon</em>'}</h2>
+    <ul class="types">${(v.types || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+    <p class="desc">${esc(v.description) || 'Pas encore de description.'}</p>
+    ${liens ? `<p class="liens">${liens}</p>` : ''}
+    ${modifiable ? '<button class="btn" id="btn-edit">Modifier ma fiche</button>' : ''}`;
+  document.body.classList.add('vue-fiche');
+  afficherListe();
+}
+
+/* ---------- Édition de sa propre fiche ---------- */
+function afficherFormulaire() {
+  $('fiche').innerHTML = `
+    <button class="btn sec retour" id="btn-annuler" type="button">← Annuler</button>
+    <h2>Ma fiche : ${esc(moi.pseudo)}</h2>
+    <form id="form">
+      <label>Description
+        <textarea name="description" rows="5" maxlength="600">${esc(moi.description)}</textarea></label>
+      <label>Types (séparés par des virgules)
+        <input name="types" value="${esc((moi.types || []).join(', '))}" placeholder="gaming, chill, musique"></label>
+      <label>Lien Twitch
+        <input name="twitch" type="url" value="${esc(moi.twitch)}" placeholder="https://twitch.tv/…"></label>
+      <label>Lien YouTube
+        <input name="youtube" type="url" value="${esc(moi.youtube)}" placeholder="https://youtube.com/@…"></label>
+      <label>Lien X / Twitter
+        <input name="twitter" type="url" value="${esc(moi.twitter)}" placeholder="https://x.com/…"></label>
+      <label class="check"><input type="checkbox" name="consentement" ${moi.consentement ? 'checked' : ''}>
+        <span>J’accepte que ma fiche soit publiée sur le VTuberdex. Je peux la masquer ou la supprimer quand je veux.</span></label>
+      <div class="actions">
+        <button class="btn" type="submit">Enregistrer</button>
+        <button class="btn sec danger" id="btn-suppr" type="button">Supprimer ma fiche</button>
+      </div>
+      <p id="msg" role="status"></p>
+    </form>`;
+  document.body.classList.add('vue-fiche');
+}
+
+async function sauver(e) {
+  e.preventDefault();
+  const f = e.target, slug = moi.slug, accord = f.consentement.checked;
+  const maj = {
+    description: f.description.value.trim(),
+    types: f.types.value.split(',').map(t => t.trim()).filter(Boolean).slice(0, 6),
+    twitch: f.twitch.value.trim() || null,
+    youtube: f.youtube.value.trim() || null,
+    twitter: f.twitter.value.trim() || null,
+    consentement: accord,
+    date_consentement: accord ? (moi.date_consentement || new Date().toISOString()) : null
+  };
+  const { error } = await db.from('vtubers').update(maj).eq('id', moi.id);
+  if (error) { $('msg').textContent = 'Enregistrement impossible : ' + error.message; return; }
+  $('form').remove();
+  await charger();
+  afficherFiche(slug);
+}
+
+async function supprimer() {
+  if (!confirm('Supprimer définitivement ta fiche ?')) return;
+  const { error } = await db.from('vtubers').delete().eq('id', moi.id);
+  if (error) { $('msg').textContent = 'Suppression impossible : ' + error.message; return; }
+  location.hash = '';
+  await charger();
+}
+
+/* ---------- Événements ---------- */
+$('liste').addEventListener('click', e => {
+  const b = e.target.closest('button[data-slug]');
+  if (!b) return;
+  if (decodeURIComponent(location.hash.slice(1)) === b.dataset.slug) afficherFiche(b.dataset.slug);
+  else location.hash = b.dataset.slug;
+});
+$('fiche').addEventListener('click', e => {
+  const id = e.target.id;
+  if (id === 'btn-retour') { location.hash = ''; afficherFiche(''); }
+  else if (id === 'btn-edit') afficherFormulaire();
+  else if (id === 'btn-annuler') afficherFiche(moi.slug);
+  else if (id === 'btn-suppr') supprimer();
+});
+$('fiche').addEventListener('submit', sauver);
+$('recherche').addEventListener('input', afficherListe);
+window.addEventListener('hashchange', ouvrirDepuisHash);
+$('btn-ma-fiche').addEventListener('click', () => { location.hash = moi.slug; afficherFiche(moi.slug); afficherFormulaire(); });
+$('btn-connexion').addEventListener('click', () =>
+  db.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } }));
+$('btn-deco').addEventListener('click', async () => { await db.auth.signOut(); });
+
+db.auth.onAuthStateChange((evt, session) => {
+  if (!['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT'].includes(evt)) return;
+  user = session ? session.user : null;
+  charger();
+});
+</script>
+</body>
+</html>
